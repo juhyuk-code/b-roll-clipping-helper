@@ -88,6 +88,39 @@ function parseWithHeaders(lines, startIndex) {
 }
 
 /**
+ * Check if a text block looks like metadata (key: value lines, tags, etc.)
+ */
+function looksLikeMetadata(text) {
+  const lines = text.split('\n').filter((l) => l.trim());
+  if (lines.length === 0) return true;
+  const metaLines = lines.filter((l) => /^[\w가-힣]+\s*[:：]\s*.+/.test(l) || /^[-*]\s/.test(l) || /^#/.test(l));
+  return metaLines.length / lines.length > 0.5;
+}
+
+/**
+ * Split a large text block into sections by double newlines (paragraphs).
+ */
+function splitIntoParagraphSections(text) {
+  const chunks = text.split(/\n\s*\n/).filter((c) => c.trim().length > 0);
+  const sections = [];
+
+  for (const chunk of chunks) {
+    const trimmed = chunk.trim();
+    if (trimmed.length < 15) continue; // skip tiny fragments
+    if (looksLikeMetadata(trimmed)) continue; // skip metadata blocks
+
+    const section = createSection(
+      SECTION_LABELS[sections.length] || `SECTION ${sections.length + 1}`,
+      sections.length
+    );
+    section.text = trimmed;
+    sections.push(section);
+  }
+
+  return sections;
+}
+
+/**
  * Try parsing with --- dividers. Returns sections array or empty if no --- found.
  */
 function parseWithDividers(lines, startIndex) {
@@ -95,30 +128,47 @@ function parseWithDividers(lines, startIndex) {
   const hasDividers = lines.slice(startIndex).some((l) => /^-{3,}\s*$/.test(l));
   if (!hasDividers) return [];
 
-  const sections = [];
+  // Collect chunks between --- dividers
+  const chunks = [];
   let currentText = '';
 
   for (let i = startIndex; i < lines.length; i++) {
     const line = lines[i];
     if (/^-{3,}\s*$/.test(line)) {
       const trimmed = currentText.trim();
-      if (trimmed) {
-        const section = createSection(SECTION_LABELS[sections.length] || `SECTION ${sections.length + 1}`, sections.length);
-        section.text = trimmed;
-        sections.push(section);
-      }
+      if (trimmed) chunks.push(trimmed);
       currentText = '';
       continue;
     }
     currentText += line + '\n';
   }
 
-  // Last chunk after final ---
-  const trimmed = currentText.trim();
-  if (trimmed) {
-    const section = createSection(SECTION_LABELS[sections.length] || `SECTION ${sections.length + 1}`, sections.length);
-    section.text = trimmed;
-    sections.push(section);
+  const lastTrimmed = currentText.trim();
+  if (lastTrimmed) chunks.push(lastTrimmed);
+
+  // For each chunk: if it's large narration content, split by paragraphs
+  // If it's metadata, skip it
+  const sections = [];
+
+  for (const chunk of chunks) {
+    if (looksLikeMetadata(chunk)) continue;
+
+    // If chunk has multiple paragraphs, split them into individual sections
+    const paragraphSections = splitIntoParagraphSections(chunk);
+    if (paragraphSections.length > 0) {
+      for (const ps of paragraphSections) {
+        ps.index = sections.length;
+        ps.heading = SECTION_LABELS[sections.length] || `SECTION ${sections.length + 1}`;
+        sections.push(ps);
+      }
+    } else if (chunk.length >= 15) {
+      const section = createSection(
+        SECTION_LABELS[sections.length] || `SECTION ${sections.length + 1}`,
+        sections.length
+      );
+      section.text = chunk;
+      sections.push(section);
+    }
   }
 
   return sections;
