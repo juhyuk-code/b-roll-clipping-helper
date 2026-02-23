@@ -1,6 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'userPrompt and transcript are required' });
   }
 
-  // Format transcript for Claude
+  // Format transcript
   const formattedTranscript = transcript
     .map((seg) => {
       const mins = Math.floor(seg.start / 60);
@@ -22,13 +22,10 @@ export default async function handler(req, res) {
     .join('\n');
 
   try {
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: `The user wants to find a specific moment in this YouTube video.
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    const result = await model.generateContent(
+      `The user wants to find a specific moment in this YouTube video.
 
 USER PROMPT: "${userPrompt}"
 
@@ -51,16 +48,14 @@ Return JSON array (no markdown fences):
 Rules:
 - Return up to 3 matches, ranked by relevance
 - If nothing matches, return empty array
-- Include the actual transcript text in "excerpt"`,
-        },
-      ],
-    });
+- Include the actual transcript text in "excerpt"`
+    );
 
-    const text = message.content[0].text.trim();
+    const text = result.response.text().trim();
     const results = JSON.parse(text);
     return res.status(200).json(results);
   } catch (err) {
-    console.error('Claude search-in-video error:', err);
+    console.error('Gemini search-in-video error:', err);
     return res.status(500).json({ error: 'Failed to search in video' });
   }
 }
