@@ -21,7 +21,11 @@ export default function DropZone() {
 
       try {
         const text = await file.text();
+        console.log('File content:', text);
+        console.log('File length:', text.length);
         const script = parseScript(text);
+        console.log('Parsed script:', script);
+        console.log('Sections found:', script.sections.length);
 
         if (script.sections.length === 0) {
           setError('No sections found. Use ## headers to define sections.');
