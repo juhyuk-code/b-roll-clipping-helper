@@ -39,7 +39,9 @@ For each, provide:
 Return as JSON array. No markdown fences.`
     );
 
-    const text = result.response.text().trim();
+    let text = result.response.text().trim();
+    // Strip markdown code fences that Gemini sometimes adds
+    text = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?\s*```$/i, '');
     const ideas = JSON.parse(text);
     return res.status(200).json(ideas);
   } catch (err) {

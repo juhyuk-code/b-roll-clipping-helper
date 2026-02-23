@@ -20,8 +20,8 @@ export default async function handler(req, res) {
 
     // Normalize the response format
     const segments = transcript.map((seg) => ({
-      start: seg.offset / 1000, // Convert ms to seconds
-      duration: seg.duration / 1000,
+      start: seg.offset, // Already in seconds from youtube-transcript
+      duration: seg.duration,
       text: seg.text,
     }));
 
