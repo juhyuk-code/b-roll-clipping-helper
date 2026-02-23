@@ -2,6 +2,7 @@
  * Serverless function to fetch YouTube video transcripts.
  * Uses the youtube-transcript library as a proxy to avoid CORS.
  */
+import { YoutubeTranscript } from 'youtube-transcript';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -14,8 +15,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Dynamically import to handle the ESM module
-    const { YoutubeTranscript } = await import('youtube-transcript');
     const transcript = await YoutubeTranscript.fetchTranscript(videoId);
 
     // Normalize the response format

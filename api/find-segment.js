@@ -64,7 +64,7 @@ Rules:
     const parsed = JSON.parse(text);
     return res.status(200).json(parsed);
   } catch (err) {
-    console.error('Gemini find-segment error:', err);
-    return res.status(500).json({ error: 'Failed to find segment' });
+    console.error('Gemini find-segment error:', err.message || err);
+    return res.status(500).json({ error: 'Failed to find segment', detail: err.message });
   }
 }
